@@ -1,5 +1,7 @@
-# Secrets
+# Secrets — NEVER commit these
 backend/.env
+.env
+q-dev-chat-*.md
 
 # Python
 __pycache__/
