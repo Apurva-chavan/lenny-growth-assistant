@@ -1,5 +1,5 @@
 """
-LLM client abstraction. Supports Anthropic, OpenAI, and Ollama.
+LLM client abstraction. Supports Anthropic, OpenAI, Ollama, Google Gemini, and Groq.
 Switch provider via LLM_PROVIDER env var without changing application code.
 """
 import httpx
@@ -21,6 +21,10 @@ async def chat_completion(messages: list[dict], system: str = "", max_tokens: in
         return await _openai(messages, system, max_tokens, settings)
     elif provider == "ollama":
         return await _ollama(messages, system, max_tokens, settings)
+    elif provider == "gemini":
+        return await _gemini(messages, system, max_tokens, settings)
+    elif provider == "groq":
+        return await _groq(messages, system, max_tokens, settings)
     else:
         raise ValueError(f"Unknown LLM_PROVIDER: {provider}")
 
@@ -71,6 +75,44 @@ async def _ollama(messages, system, max_tokens, settings) -> str:
         raise RuntimeError(f"Ollama not reachable at {settings.ollama_base_url}. Is it running?")
     except httpx.TimeoutException:
         raise RuntimeError("Ollama request timed out. Try a smaller model or increase timeout.")
+
+
+async def _gemini(messages, system, max_tokens, settings) -> str:
+    if not settings.gemini_api_key:
+        raise RuntimeError("GEMINI_API_KEY not set")
+    import google.generativeai as genai
+    genai.configure(api_key=settings.gemini_api_key)
+    model = genai.GenerativeModel(
+        model_name=settings.gemini_model,
+        system_instruction=system or None,
+    )
+    # Convert OpenAI-style messages to Gemini contents format
+    contents = []
+    for m in messages:
+        role = "user" if m["role"] == "user" else "model"
+        contents.append({"role": role, "parts": [m["content"]]})
+    response = await model.generate_content_async(
+        contents,
+        generation_config=genai.GenerationConfig(max_output_tokens=max_tokens),
+    )
+    return response.text
+
+
+async def _groq(messages, system, max_tokens, settings) -> str:
+    if not settings.groq_api_key:
+        raise RuntimeError("GROQ_API_KEY not set")
+    from openai import AsyncOpenAI
+    client = AsyncOpenAI(
+        api_key=settings.groq_api_key,
+        base_url="https://api.groq.com/openai/v1",
+    )
+    full_messages = ([{"role": "system", "content": system}] if system else []) + messages
+    response = await client.chat.completions.create(
+        model=settings.groq_model,
+        max_tokens=max_tokens,
+        messages=full_messages,
+    )
+    return response.choices[0].message.content
 
 
 async def check_ollama_health(base_url: str) -> bool:

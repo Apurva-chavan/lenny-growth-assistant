@@ -8,7 +8,7 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+asyncpg://lenny:lenny_pass@localhost:5432/lenny_db"
 
-    llm_provider: str = "ollama"  # anthropic | openai | ollama
+    llm_provider: str = "groq"  # anthropic | openai | ollama | gemini | groq
 
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-3-5-sonnet-20241022"
@@ -18,6 +18,12 @@ class Settings(BaseSettings):
 
     ollama_base_url: str = "http://ollama:11434"
     ollama_model: str = "llama3.2"
+
+    gemini_api_key: str = ""
+    gemini_model: str = "gemini-1.5-flash"
+
+    groq_api_key: str = ""
+    groq_model: str = "llama3-8b-8192"
 
     transcripts_dir: str = "/app/data/transcripts"
     vector_index_path: str = "/app/data/vector_index"
