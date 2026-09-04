@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-950 text-gray-100 font-sans antialiased;
+  }
+  * {
+    @apply box-border;
+  }
+}
+
+@layer components {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: #374151 transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 4px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: #374151;
+    border-radius: 2px;
+  }
+}
+
+/* Prose styles for markdown rendering */
+.prose-lenny {
+  @apply text-gray-200 leading-relaxed;
+}
+.prose-lenny h1 { @apply text-2xl font-bold text-white mt-6 mb-3; }
+.prose-lenny h2 { @apply text-xl font-semibold text-white mt-5 mb-2; }
+.prose-lenny h3 { @apply text-lg font-semibold text-gray-100 mt-4 mb-2; }
+.prose-lenny p  { @apply mb-3; }
+.prose-lenny ul { @apply list-disc pl-5 mb-3 space-y-1; }
+.prose-lenny ol { @apply list-decimal pl-5 mb-3 space-y-1; }
+.prose-lenny strong { @apply text-lenny-500 font-semibold; }
+.prose-lenny code { @apply bg-gray-800 text-green-400 px-1 py-0.5 rounded text-sm; }
+.prose-lenny pre  { @apply bg-gray-800 p-4 rounded-lg overflow-x-auto mb-3; }
+.prose-lenny blockquote { @apply border-l-4 border-lenny-500 pl-4 italic text-gray-400 my-3; }
+.prose-lenny a { @apply text-lenny-500 underline; }
+.prose-lenny hr { @apply border-gray-700 my-4; }

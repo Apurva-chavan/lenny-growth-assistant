@@ -1,0 +1,22 @@
+# Secrets
+backend/.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Vector index (large binary, rebuild from transcripts)
+data/vector_index/
+
+# OS
+.DS_Store
+Thumbs.db
