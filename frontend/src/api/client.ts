@@ -1,4 +1,5 @@
-const BASE = '/api/v1'
+const BASE_URL = import.meta.env.VITE_API_URL ?? ''
+const BASE = `${BASE_URL}/api/v1`
 
 export interface Session {
   id: string
@@ -56,7 +57,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  health: () => request<HealthStatus>('/health'),
+  health: () => request<HealthStatus>(`${BASE_URL}/health`),
   createSession: (title = 'New Chat') =>
     request<Session>(`${BASE}/sessions`, { method: 'POST', body: JSON.stringify({ title }) }),
   listSessions: () => request<Session[]>(`${BASE}/sessions`),

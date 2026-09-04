@@ -20,3 +20,7 @@ data/vector_index/
 # OS
 .DS_Store
 Thumbs.db
+
+# Keep transcripts (needed for Render deployment)
+!data/transcripts/*.md
+!data/transcripts/*.txt
