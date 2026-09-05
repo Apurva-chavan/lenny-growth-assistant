@@ -8,10 +8,9 @@ services:
   - type: web
     name: lenny-backend
     plan: free
-    runtime: python
-    rootDir: backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -24,9 +23,9 @@ services:
       - key: GROQ_MODEL
         value: llama-3.3-70b-versatile
       - key: TRANSCRIPTS_DIR
-        value: /opt/render/project/src/data/transcripts
+        value: /app/data/transcripts
       - key: VECTOR_INDEX_PATH
-        value: /opt/render/project/src/data/vector_index
+        value: /app/data/vector_index
       - key: CHUNK_SIZE
         value: "800"
       - key: CHUNK_OVERLAP
