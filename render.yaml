@@ -2,12 +2,12 @@ databases:
   - name: lenny-db
     databaseName: lenny_db
     user: lenny
-    plan: free
+    plan: starter
 
 services:
   - type: web
     name: lenny-backend
-    plan: free
+    plan: starter
     runtime: python
     rootDir: backend
     buildCommand: pip install -r requirements.txt
@@ -42,7 +42,7 @@ services:
 
   - type: web
     name: lenny-frontend
-    plan: free
+    plan: starter
     runtime: static
     rootDir: frontend
     buildCommand: npm install && npm run build
