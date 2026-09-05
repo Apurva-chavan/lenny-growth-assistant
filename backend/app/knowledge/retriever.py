@@ -1,43 +1,36 @@
 """
-Knowledge base: loads transcripts, chunks them, builds a FAISS vector index,
-and provides semantic search. Uses sentence-transformers for embeddings (runs locally).
+Lightweight knowledge base using TF-IDF (no heavy ML models).
+Fits within Render free tier 512MB RAM limit.
 """
 import os
-import json
-import pickle
 import re
+import json
+import math
 from pathlib import Path
 from dataclasses import dataclass, field
-import numpy as np
+from collections import Counter
 from app.config import get_settings
 from app.logging_config import get_logger
 
 logger = get_logger(__name__)
 
-# Lazy imports to avoid slow startup when not needed
-_model = None
-_index = None
 _chunks: list["Chunk"] = []
+_tfidf_index: dict = {}  # term -> {chunk_id -> tf-idf score}
+_idf: dict = {}
 
 
 @dataclass
 class Chunk:
     id: str
-    source: str          # filename / episode title
+    source: str
     episode_url: str
     text: str
     start_char: int
     token_estimate: int
 
 
-def _get_model():
-    global _model
-    if _model is None:
-        from sentence_transformers import SentenceTransformer
-        logger.info("loading_embedding_model")
-        _model = SentenceTransformer("all-MiniLM-L6-v2")
-        logger.info("embedding_model_loaded")
-    return _model
+def _tokenize(text: str) -> list[str]:
+    return re.findall(r'\b[a-z]{2,}\b', text.lower())
 
 
 def _chunk_text(text: str, source: str, url: str, chunk_size: int, overlap: int) -> list[Chunk]:
@@ -48,12 +41,11 @@ def _chunk_text(text: str, source: str, url: str, chunk_size: int, overlap: int)
         window = words[i: i + chunk_size]
         if len(window) < 20:
             break
-        chunk_text = " ".join(window)
         chunks.append(Chunk(
             id=f"{source}_{i}",
             source=source,
             episode_url=url,
-            text=chunk_text,
+            text=" ".join(window),
             start_char=i,
             token_estimate=len(window),
         ))
@@ -67,22 +59,18 @@ def _load_transcripts(transcripts_dir: str, chunk_size: int, overlap: int) -> li
         return []
 
     all_chunks = []
-    transcript_files = sorted(path.glob("*.txt")) + sorted(path.glob("*.md"))
-    for f in transcript_files:
+    for f in sorted(path.glob("*.txt")) + sorted(path.glob("*.md")):
         raw = f.read_text(encoding="utf-8", errors="ignore")
-        # Try to extract URL from first line if present (format: # URL: https://...)
         url = ""
         lines = raw.splitlines()
         if lines and lines[0].startswith("# URL:"):
             url = lines[0].replace("# URL:", "").strip()
             raw = "\n".join(lines[1:])
-        # Clean whitespace
         raw = re.sub(r"\s+", " ", raw).strip()
         chunks = _chunk_text(raw, f.stem, url, chunk_size, overlap)
         all_chunks.extend(chunks)
         logger.info("transcript_loaded", file=f.name, chunks=len(chunks))
 
-    # Also load JSON transcripts (array of {title, url, text})
     for f in path.glob("*.json"):
         try:
             data = json.loads(f.read_text(encoding="utf-8"))
@@ -98,71 +86,66 @@ def _load_transcripts(transcripts_dir: str, chunk_size: int, overlap: int) -> li
     return all_chunks
 
 
+def _build_tfidf(chunks: list[Chunk]):
+    global _tfidf_index, _idf
+    N = len(chunks)
+    df: dict[str, int] = {}
+    tf_per_chunk: list[dict[str, float]] = []
+
+    for chunk in chunks:
+        tokens = _tokenize(chunk.text)
+        counts = Counter(tokens)
+        total = len(tokens) or 1
+        tf = {term: count / total for term, count in counts.items()}
+        tf_per_chunk.append(tf)
+        for term in counts:
+            df[term] = df.get(term, 0) + 1
+
+    _idf = {term: math.log(N / (1 + freq)) for term, freq in df.items()}
+
+    _tfidf_index = {}
+    for i, (chunk, tf) in enumerate(zip(chunks, tf_per_chunk)):
+        for term, tf_val in tf.items():
+            score = tf_val * _idf.get(term, 0)
+            if score > 0:
+                if term not in _tfidf_index:
+                    _tfidf_index[term] = {}
+                _tfidf_index[term][i] = score
+
+
 def build_index(force: bool = False):
-    """Build or load the FAISS index."""
-    global _index, _chunks
+    global _chunks
     settings = get_settings()
-    index_path = Path(settings.vector_index_path)
-    index_file = index_path / "index.faiss"
-    chunks_file = index_path / "chunks.pkl"
-
-    if not force and index_file.exists() and chunks_file.exists():
-        import faiss
-        logger.info("loading_existing_index")
-        _index = faiss.read_index(str(index_file))
-        with open(chunks_file, "rb") as f:
-            _chunks = pickle.load(f)
-        logger.info("index_loaded", chunks=len(_chunks))
-        return
-
     _chunks = _load_transcripts(settings.transcripts_dir, settings.chunk_size, settings.chunk_overlap)
     if not _chunks:
         logger.warning("no_chunks_to_index")
         return
-
-    model = _get_model()
-    texts = [c.text for c in _chunks]
-    logger.info("building_embeddings", count=len(texts))
-    embeddings = model.encode(texts, batch_size=64, show_progress_bar=False, normalize_embeddings=True)
-    embeddings = np.array(embeddings, dtype="float32")
-
-    import faiss
-    dim = embeddings.shape[1]
-    _index = faiss.IndexFlatIP(dim)  # inner product = cosine on normalized vecs
-    _index.add(embeddings)
-
-    index_path.mkdir(parents=True, exist_ok=True)
-    faiss.write_index(_index, str(index_file))
-    with open(chunks_file, "wb") as f:
-        pickle.dump(_chunks, f)
+    _build_tfidf(_chunks)
     logger.info("index_built_and_saved", chunks=len(_chunks))
 
 
 def search(query: str, top_k: int = None) -> list[Chunk]:
-    """Return top-k chunks most relevant to query."""
-    global _index, _chunks
+    global _chunks, _tfidf_index
     settings = get_settings()
     k = top_k or settings.top_k_results
 
-    if _index is None or not _chunks:
+    if not _chunks or not _tfidf_index:
         logger.warning("index_not_ready_for_search")
         return []
 
-    model = _get_model()
-    q_emb = model.encode([query], normalize_embeddings=True)
-    q_emb = np.array(q_emb, dtype="float32")
+    tokens = _tokenize(query)
+    scores: dict[int, float] = {}
+    for token in tokens:
+        if token in _tfidf_index:
+            for chunk_idx, score in _tfidf_index[token].items():
+                scores[chunk_idx] = scores.get(chunk_idx, 0) + score
 
-    scores, indices = _index.search(q_emb, k)
-    results = []
-    for score, idx in zip(scores[0], indices[0]):
-        if idx < 0 or idx >= len(_chunks):
-            continue
-        results.append(_chunks[idx])
-    return results
+    top = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:k]
+    return [_chunks[i] for i, _ in top]
 
 
 def get_index_stats() -> dict:
     return {
         "chunks": len(_chunks),
-        "index_ready": _index is not None,
+        "index_ready": len(_chunks) > 0 and bool(_tfidf_index),
     }
