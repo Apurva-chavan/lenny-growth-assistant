@@ -26,8 +26,8 @@ frontend (React + Vite)  ──►  backend (FastAPI)  ──►  PostgreSQL
 
 ## Live Demo
 
-- Frontend: https://lenny-frontend.onrender.com
-- Backend API: https://lenny-backend.onrender.com/docs
+- Frontend: https://lenny-frontend-o809.onrender.com
+- Backend API: https://lenny-growth-assistant-07l4.onrender.com/docs
 
 ---
 

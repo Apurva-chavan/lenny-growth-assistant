@@ -2,12 +2,12 @@ databases:
   - name: lenny-db
     databaseName: lenny_db
     user: lenny
-    plan: starter
+    plan: free
 
 services:
   - type: web
     name: lenny-backend
-    plan: starter
+    plan: free
     runtime: python
     rootDir: backend
     buildCommand: pip install -r requirements.txt
@@ -34,7 +34,7 @@ services:
       - key: TOP_K_RESULTS
         value: "5"
       - key: ALLOWED_ORIGINS
-        value: https://lenny-frontend.onrender.com,http://localhost:3000
+        value: https://lenny-frontend-o809.onrender.com,http://localhost:3000
       - key: APP_ENV
         value: production
       - key: PYTHON_VERSION
@@ -42,7 +42,7 @@ services:
 
   - type: web
     name: lenny-frontend
-    plan: starter
+    plan: free
     runtime: static
     rootDir: frontend
     buildCommand: npm install && npm run build
