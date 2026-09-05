@@ -22,7 +22,7 @@ services:
       - key: GROQ_API_KEY
         sync: false
       - key: GROQ_MODEL
-        value: llama3-8b-8192
+        value: llama-3.3-70b-versatile
       - key: TRANSCRIPTS_DIR
         value: /opt/render/project/src/data/transcripts
       - key: VECTOR_INDEX_PATH
@@ -38,7 +38,7 @@ services:
       - key: APP_ENV
         value: production
       - key: PYTHON_VERSION
-        value: "3.11.0"
+        value: "3.13"
 
   - type: web
     name: lenny-frontend
