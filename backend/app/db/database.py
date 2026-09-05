@@ -18,13 +18,11 @@ def get_engine():
     global _engine
     if _engine is None:
         settings = get_settings()
-        _engine = create_async_engine(
-            settings.async_database_url,
-            echo=settings.app_env == "development",
-            pool_pre_ping=True,
-            pool_size=5,
-            max_overflow=10,
-        )
+        url = settings.async_database_url
+        kwargs = {"echo": settings.app_env == "development"}
+        if not url.startswith("sqlite"):
+            kwargs.update({"pool_pre_ping": True, "pool_size": 5, "max_overflow": 10})
+        _engine = create_async_engine(url, **kwargs)
     return _engine
 
 

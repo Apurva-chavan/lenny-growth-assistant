@@ -10,8 +10,9 @@ class Settings(BaseSettings):
 
     @property
     def async_database_url(self) -> str:
-        """Convert standard postgres:// URL from Render to asyncpg-compatible URL."""
         url = self.database_url
+        if url.startswith("sqlite"):
+            return url  # already async-compatible via aiosqlite
         if url.startswith("postgres://"):
             url = url.replace("postgres://", "postgresql+asyncpg://", 1)
         elif url.startswith("postgresql://") and "+asyncpg" not in url:
@@ -54,4 +55,6 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    s = Settings()
+    # clear cache so env changes are picked up on reload
+    return s

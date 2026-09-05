@@ -107,12 +107,29 @@ async def _groq(messages, system, max_tokens, settings) -> str:
         base_url="https://api.groq.com/openai/v1",
     )
     full_messages = ([{"role": "system", "content": system}] if system else []) + messages
-    response = await client.chat.completions.create(
-        model=settings.groq_model,
-        max_tokens=max_tokens,
-        messages=full_messages,
-    )
-    return response.choices[0].message.content
+    # Try models in order until one works
+    models_to_try = [
+        settings.groq_model,
+        "openai/gpt-oss-20b",
+        "openai/gpt-oss-120b",
+        "llama-3.3-70b-versatile",
+        "llama-3.1-8b-instant",
+    ]
+    last_error = None
+    for model in models_to_try:
+        try:
+            response = await client.chat.completions.create(
+                model=model,
+                max_tokens=max_tokens,
+                messages=full_messages,
+            )
+            logger.info("groq_model_used", model=model)
+            return response.choices[0].message.content
+        except Exception as e:
+            last_error = e
+            logger.warning("groq_model_failed", model=model, error=str(e))
+            continue
+    raise last_error
 
 
 async def check_ollama_health(base_url: str) -> bool:
